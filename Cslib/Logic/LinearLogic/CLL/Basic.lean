@@ -83,14 +83,14 @@ def Proposition.Neg (a : @Proposition Atom) : Prop :=
 
 /-- Whether a `Proposition` is positive is decidable. -/
 instance Proposition.pos_decidable (a : @Proposition Atom) : Decidable a.Pos := by
-  cases a <;> 
-  simp only [Proposition.Pos] <;> 
+  cases a <;>
+  simp only [Proposition.Pos] <;>
   first | apply Decidable.isTrue; trivial | apply Decidable.isFalse; trivial
 
 /-- Whether a `Proposition` is negative is decidable. -/
 instance Proposition.neg_decidable (a : @Proposition Atom) : Decidable a.Neg := by
-  cases a <;> 
-  simp only [Proposition.Neg] <;> 
+  cases a <;>
+  simp only [Proposition.Neg] <;>
   first | apply Decidable.isTrue; trivial | apply Decidable.isFalse; trivial
 
 /-- Propositional duality. -/
@@ -150,7 +150,7 @@ def Sequent.allQuest (Γ : @Sequent Atom) :=
 
 open Proposition in
 /-- Sequent calculus for CLL. -/
-inductive Proof : @Sequent Atom → Prop where
+inductive Proof : @Sequent Atom → Type u where
   | ax : Proof [a, a.dual]
   | cut : Proof (a :: Γ) → Proof (a.dual :: Δ) → Proof (Γ ++ Δ)
   | exchange : List.Perm Γ Δ → Proof Γ → Proof Δ
@@ -167,7 +167,13 @@ inductive Proof : @Sequent Atom → Prop where
   | contract : Proof (quest a :: quest a :: Γ) → Proof (quest a :: Γ)
   | bang {Γ : @Sequent Atom} {a} : Γ.allQuest → Proof (a :: Γ) → Proof (bang a :: Γ)
 
-scoped notation "⊢" Γ:90 => Proof Γ
+/-- A sequent is provable if it can be derived with `Proof`. -/
+def Provable (Γ : @Sequent Atom) : Prop := ∃ _ : @Proof Atom Γ, True
+
+/-- If there is a `Proof` concluding Γ, then Γ is `Provable`. -/
+theorem Provable.proof (p : @Proof Atom Γ) : @Provable Atom Γ := by exists p
+
+scoped notation "⊢" Γ:90 => Provable Γ
 
 section LogicalEquiv
 
@@ -183,9 +189,11 @@ namespace Proposition
 /-- !⊤ ≡ 1 -/
 theorem bang_top_eqv_one : (@bang Atom ⊤) ≡ 1 := by
   constructor
-  · apply Proof.weaken
+  · apply Provable.proof
+    apply Proof.weaken
     exact Proof.one
-  · apply Proof.bot
+  · apply Provable.proof
+    apply Proof.bot
     apply Proof.bang
     · intro _ _; contradiction
     exact Proof.top
@@ -193,12 +201,14 @@ theorem bang_top_eqv_one : (@bang Atom ⊤) ≡ 1 := by
 /-- ?0 ≡ ⊥ -/
 theorem quest_zero_eqv_bot : (@quest Atom 0) ≡ ⊥ := by
   constructor
-  · apply Proof.exchange (List.Perm.swap (bang top) bot [])
+  · apply Provable.proof
+    apply Proof.exchange (List.Perm.swap (bang top) bot [])
     apply Proof.bot
     apply Proof.bang
     · intro _ _; contradiction
     exact Proof.top
-  · apply Proof.exchange (List.Perm.swap one (quest zero) [])
+  · apply Provable.proof
+    apply Proof.exchange (List.Perm.swap one (quest zero) [])
     apply Proof.weaken
     exact Proof.one
 
@@ -206,18 +216,22 @@ theorem quest_zero_eqv_bot : (@quest Atom 0) ≡ ⊥ := by
 theorem tensor_zero_eqv_zero (a : @Proposition Atom) :
     a ⊗ 0 ≡ 0 := by
   constructor
-  · apply Proof.parr
+  · apply Provable.proof
+    apply Proof.parr
     apply Proof.exchange (List.Perm.swap a.dual (top) [zero])
     exact Proof.top
-  · exact Proof.top
+  · apply Provable.proof
+    exact Proof.top
 
 /-- a ⅋ ⊤ ≡ ⊤ -/
 theorem parr_top_eqv_top (a : @Proposition Atom) :
     a ⅋ ⊤ ≡ ⊤ := by
   constructor
-  · apply Proof.exchange (List.Perm.swap (parr a top).dual top [])
+  · apply Provable.proof
+    apply Proof.exchange (List.Perm.swap (parr a top).dual top [])
     exact Proof.top
-  · apply Proof.exchange (List.Perm.swap top.dual (parr a top) [])
+  · apply Provable.proof
+    apply Proof.exchange (List.Perm.swap top.dual (parr a top) [])
     apply Proof.parr
     apply Proof.exchange (List.Perm.swap a top [top.dual])
     exact Proof.top
